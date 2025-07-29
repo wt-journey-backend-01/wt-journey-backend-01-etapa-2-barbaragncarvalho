@@ -20,7 +20,8 @@ function update(id, dados) {
     if (indice < 0) {
         return null;
     }
-    casos[indice] = { id, ...dados };
+    const { id: idDoPayload, ...resto } = dados;
+    casos[indice] = { id, ...resto };
     return casos[indice];
 }
 

@@ -3,8 +3,8 @@ const agentesRepository = require("../repositories/agentesRepository");
 const joi = require('joi');
 
 const formatoValido = joi.object({
-    titulo: joi.string().required(),
-    descricao: joi.string().required(),
+    titulo: joi.string().min(1).required(),
+    descricao: joi.string().min(1).required(),
     status: joi.string().valid('aberto', 'solucionado').required(),
     agente_id: joi.string().guid().required()
 });
@@ -28,7 +28,7 @@ function createCaso(req, res, next) {
         return next({ status: 400, message: "Dados mal formatados.", errors: erro.details.map(d => d.message) });
     }
     if (!agentesRepository.findById(req.body.agente_id)) {
-        return res.status(400).json({ message: "Agente não encontrado." })
+        return next({ status: 400, message: "Agente não encontrado.", errors: erro.details.map(d => d.message) });
     }
     const casoNovo = casosRepository.create(req.body);
     res.status(201).json(casoNovo);

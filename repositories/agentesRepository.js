@@ -20,7 +20,8 @@ function update(id, dados) {
     if (indice < 0) {
         return null;
     }
-    agentes[indice] = { id, ...dados };
+    const { id: idDoPayload, ...resto } = dados;
+    agentes[indice] = { id, ...resto };
     return agentes[indice];
 }
 

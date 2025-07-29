@@ -2,9 +2,9 @@ const agentesRepository = require("../repositories/agentesRepository");
 const joi = require('joi');
 
 const formatoValido = joi.object({
-    nome: joi.string().required(), //deve ser string e é obrigatória
+    nome: joi.string().min(1).required(), //deve ser string e é obrigatória
     dataDeIncorporacao: joi.date().iso().required(),
-    cargo: joi.string().required()
+    cargo: joi.string().min(1).required()
 });
 
 function getAllAgentes(req, res) {
@@ -35,23 +35,20 @@ function getAgente(req, res) {
     res.status(200).json(agenteProcurado);
 }
 
-//Forma simples de fazer verificação de formatação dos dados.
-function createAgente(req, res) {
-    const { nome, dataDeIncorporacao, cargo } = req.body;
-    if (!nome) {
-        res.status(400).json({ message: "O Nome é obrigatório." });
+function createAgente(req, res, next) {
+    const { error } = formatoValido.validate(req.body, { abortEarly: false });
+    if (error) {
+        return next({ status: 400, message: "Dados mal formatados.", errors: error.details.map(d => d.message) });
     }
-    if (!dataDeIncorporacao) {
-        res.status(400).json({ message: "A Data é obrigatória." });
-    }
-    if (!cargo) {
-        res.status(400).json({ message: "O Cargo é obrigatório." });
+    const hoje = new Date();
+    const dataIncorp = new Date(req.body.dataDeIncorporacao);
+    if (dataIncorp > hoje) {
+        return res.status(400).json({ message: "Data de incorporação não pode ser no futuro." });
     }
     const agenteNovo = agentesRepository.create(req.body);
     res.status(201).json(agenteNovo);
 }
 
-//Forma mais completa de fazer verificação de formatação e validade dos dados.
 function putAgente(req, res, next) {
     const { erro } = formatoValido.validate(req.body, { abortEarly: false });
     if (erro) {
