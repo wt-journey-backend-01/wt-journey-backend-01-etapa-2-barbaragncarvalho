@@ -1,18 +1,37 @@
-const casos = [
-    {
-        id: "f5fb2ad5-22a8-4cb4-90f2-8733517a0d46",
-        titulo: "homicidio",
-        descricao: "Disparos foram reportados às 22:33 do dia 10/07/2007 na região do bairro União, resultando na morte da vítima, um homem de 45 anos.",
-        status: "aberto",
-        agente_id: "401bccf5-cf9e-489d-8412-446cd169a0f1" 
-    
-    },
-    //Demais objetos
-]
+const { v4: uuidv4 } = require('uuid');
+let casos = []
+
+function findById(id) {
+    return casos.find(caso => caso.id === id);
+}
 
 function findAll() {
     return casos
 }
+
+function create(dados) {
+    const casoNovo = { id: uuidv4(), ...dados };
+    casos.push(casoNovo);
+    return casoNovo;
+}
+
+function update(id, dados) {
+    const indice = casos.findIndex(caso => caso.id === id);
+    if (indice < 0) {
+        return null;
+    }
+    casos[indice] = { id, ...dados };
+    return casos[indice];
+}
+
+function remove(id) {
+    casos = casos.filter(caso => caso.id !== id);
+}
+
 module.exports = {
-    findAll
+    findAll,
+    findById,
+    create,
+    update,
+    remove
 }
