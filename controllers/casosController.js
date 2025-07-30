@@ -34,7 +34,7 @@ function getAllCasos(req, res) {
 function getCaso(req, res) {
     const casoProcurado = casosRepository.findById(req.params.id);
     if (!casoProcurado) {
-        return res.status(404).send();
+        return res.status(404).json({ message: "Caso não encontrado." });
     }
     res.status(200).json(casoProcurado);
 }
@@ -58,19 +58,20 @@ function putCaso(req, res, next) {
     }
     const casoAtualizado = casosRepository.update(req.params.id, req.body);
     if (!casoAtualizado) {
-        return res.status(404).send();
+        return res.status(404).json({ message: "Não foi possível atualizar o caso." });
     }
     res.status(200).json(casoAtualizado);
 }
 
 function patchCaso(req, res, next) {
-    const original = repo.findById(req.params.id);
+    const original = casosRepository.findById(req.params.id);
     if (!original) {
-        return res.status(404).end();
+        return res.status(404).json({ message: "Caso não encontrado." });
     }
 
-    const { id: _ignored, ...updates } = req.body;
-    const dados = { ...original, ...updates };
+    delete req.body.id;
+    const dados = { ...original, ...req.body };
+    
     const { error } = formatoValido.validate(dados, { abortEarly: false });
     if (error) {
         return next({
@@ -87,7 +88,7 @@ function patchCaso(req, res, next) {
 function removeCaso(req, res) {
     const casoProcurado = casosRepository.findById(req.params.id);
     if (!casoProcurado) {
-        return res.status(404).send();
+        return res.status(404).json({ message: "Caso não encontrado." });
     }
     casosRepository.remove(req.params.id);
     res.status(204).send();
@@ -96,9 +97,12 @@ function removeCaso(req, res) {
 function getAgenteOfCaso(req, res) {
     const caso = casosRepository.findById(req.params.id);
     if (!caso) {
-        return res.status(404).send();
+        return res.status(404).json({ message: "Caso não encontrado." });
     }
     const agente = agentesRepository.findById(caso.agente_id);
+    if (!agente) {
+        return res.status(404).json({ message: "Agente responsável não encontrado." });
+    }
     res.status(200).json(agente);
 }
 
