@@ -19,7 +19,9 @@
       "get": {
         "summary": "Retorna todos os agentes",
         "description": "Retorna todos os agentes, com opção de filtrar por cargo e ordenar por campo.",
-        "tags": ["Agentes"],
+        "tags": [
+          "Agentes"
+        ],
         "parameters": [
           {
             "in": "query",
@@ -57,7 +59,9 @@
       "post": {
         "summary": "Criar novo agente",
         "description": "Adiciona um novo agente ao sistema.",
-        "tags": ["Agentes"],
+        "tags": [
+          "Agentes"
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -88,7 +92,9 @@
     "/agentes/{id}": {
       "get": {
         "summary": "Obter agente por ID",
-        "tags": ["Agentes"],
+        "tags": [
+          "Agentes"
+        ],
         "parameters": [
           {
             "in": "path",
@@ -119,7 +125,9 @@
       },
       "put": {
         "summary": "Atualizar agente por completo",
-        "tags": ["Agentes"],
+        "tags": [
+          "Agentes"
+        ],
         "parameters": [
           {
             "in": "path",
@@ -162,7 +170,9 @@
       },
       "patch": {
         "summary": "Atualizar parcialmente um agente",
-        "tags": ["Agentes"],
+        "tags": [
+          "Agentes"
+        ],
         "parameters": [
           {
             "in": "path",
@@ -205,7 +215,9 @@
       },
       "delete": {
         "summary": "Remover agente",
-        "tags": ["Agentes"],
+        "tags": [
+          "Agentes"
+        ],
         "parameters": [
           {
             "in": "path",
@@ -230,7 +242,40 @@
     "/casos": {
       "get": {
         "summary": "Listar todos os casos",
-        "tags": ["Casos"],
+        "tags": [
+          "Casos"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "aberto",
+                "solucionado"
+              ]
+            },
+            "description": "Filtrar por status do caso"
+          },
+          {
+            "in": "query",
+            "name": "agente_id",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Filtrar casos por ID de agente"
+          },
+          {
+            "in": "query",
+            "name": "busca",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Busca full‑text em título e descrição"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Lista de casos",
@@ -249,7 +294,9 @@
       },
       "post": {
         "summary": "Criar um novo caso",
-        "tags": ["Casos"],
+        "tags": [
+          "Casos"
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -280,7 +327,9 @@
     "/casos/{id}": {
       "get": {
         "summary": "Buscar um caso pelo ID",
-        "tags": ["Casos"],
+        "tags": [
+          "Casos"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -310,7 +359,9 @@
       },
       "put": {
         "summary": "Atualizar um caso completamente",
-        "tags": ["Casos"],
+        "tags": [
+          "Casos"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -346,7 +397,9 @@
       },
       "patch": {
         "summary": "Atualizar parcialmente um caso",
-        "tags": ["Casos"],
+        "tags": [
+          "Casos"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -382,7 +435,9 @@
       },
       "delete": {
         "summary": "Remover um caso",
-        "tags": ["Casos"],
+        "tags": [
+          "Casos"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -407,7 +462,9 @@
     "/casos/{id}/agente": {
       "get": {
         "summary": "Obter o agente responsável por um caso",
-        "tags": ["Casos"],
+        "tags": [
+          "Casos"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -456,14 +513,22 @@
           },
           "status": {
             "type": "string",
-            "enum": ["aberto", "solucionado"]
+            "enum": [
+              "aberto",
+              "solucionado"
+            ]
           },
           "agente_id": {
             "type": "string",
             "format": "uuid"
           }
         },
-        "required": ["titulo", "descricao", "status", "agente_id"]
+        "required": [
+          "titulo",
+          "descricao",
+          "status",
+          "agente_id"
+        ]
       },
       "Agente": {
         "type": "object",
@@ -487,7 +552,11 @@
             "example": "investigador"
           }
         },
-        "required": ["nome", "dataDeIncorporacao", "cargo"]
+        "required": [
+          "nome",
+          "dataDeIncorporacao",
+          "cargo"
+        ]
       }
     }
   }

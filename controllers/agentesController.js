@@ -4,7 +4,8 @@ const joi = require('joi');
 const formatoValido = joi.object({
     nome: joi.string().min(1).required(), //deve ser string e é obrigatória
     dataDeIncorporacao: joi.date().iso().required(),
-    cargo: joi.string().min(1).required()
+    cargo: joi.string().min(1).required(),
+    id: joi.forbidden()
 });
 
 function getAllAgentes(req, res) {
@@ -50,9 +51,9 @@ function createAgente(req, res, next) {
 }
 
 function putAgente(req, res, next) {
-    const { erro } = formatoValido.validate(req.body, { abortEarly: false });
-    if (erro) {
-        return next({ status: 400, message: "Dados mal formatados.", errors: erro.details.map(d => d.message) });
+    const { error } = formatoValido.validate(req.body, { abortEarly: false });
+    if (error) {
+        return next({ status: 400, message: "Dados mal formatados.", errors: error.details.map(d => d.message) });
     }
     const agenteAtualizado = agentesRepository.update(req.params.id, req.body);
     if (!agenteAtualizado) {
@@ -67,9 +68,9 @@ function patchAgente(req, res, next) {
         return res.status(404).send();
     }
     const dados = { ...agenteProcurado, ...req.body };
-    const { erro } = formatoValido.validate(dados, { abortEarly: false });
-    if (erro) {
-        return next({ status: 400, message: "Dados mal formatados.", errors: erro.details.map(d => d.message) });
+    const { error } = formatoValido.validate(dados, { abortEarly: false });
+    if (error) {
+        return next({ status: 400, message: "Dados mal formatados.", errors: error.details.map(d => d.message) });
     }
     const agenteAtualizado = agentesRepository.update(req.params.id, dados);
     res.status(200).json(agenteAtualizado);
