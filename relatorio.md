@@ -1,209 +1,277 @@
 <sup>Esse é um feedback gerado por IA, ele pode conter erros.</sup>
 
-Você tem 8 créditos restantes para usar o sistema de feedback AI.
+Você tem 7 créditos restantes para usar o sistema de feedback AI.
 
 # Feedback para barbaragncarvalho:
 
-Nota final: **66.7/100**
+Nota final: **90.3/100**
 
-Olá, Barbara! 👋🚓
+# Feedback para você, barbaragncarvalho! 🚓✨
 
-Primeiramente, quero te parabenizar pelo esforço e pela estruturação do seu projeto! 🎉 Você conseguiu implementar todos os endpoints principais para os recursos `/agentes` e `/casos`, com as rotas, controllers e repositories bem separados, o que é essencial para manter um código organizado e escalável. Além disso, vi que você aplicou validação usando Joi e tratou erros com middleware, o que mostra um cuidado importante para garantir a qualidade da API. Muito bom! 👏
-
-Também quero destacar que você tentou implementar filtros e ordenação para os agentes, além de um endpoint para buscar o agente responsável por um caso, o que demonstra que você está indo além do básico. Isso é incrível, pois esses são pontos extras que enriquecem sua API! 🌟
+Olá! Antes de tudo, quero parabenizá-la pelo trabalho que você entregou! 🎉 Seu projeto está muito bem estruturado, com uma organização clara entre rotas, controladores e repositórios, o que é fundamental para manter o código limpo e escalável. Além disso, você implementou corretamente os métodos HTTP principais para os recursos `/agentes` e `/casos`, usando o Express.js com muita segurança e atenção às validações — isso mostra que você entendeu bem a importância de proteger a API contra dados mal formatados. 👏
 
 ---
 
-## Vamos analisar juntos alguns pontos que podem ser aprimorados para deixar sua API ainda mais robusta e alinhada com as melhores práticas?
+## O que você mandou muito bem! 👏
 
-### 1. Validação dos dados: cuidado com a nomenclatura da variável de erro do Joi
+- **Organização modular:** Separou rotas, controladores e repositórios de forma correta, deixando o código fácil de navegar.
+- **Validação com Joi:** Excelente uso do Joi para garantir que os dados recebidos estejam no formato esperado.
+- **Tratamento de erros:** Você usou middleware para erros e retornou status codes adequados como 400, 404, 201, 204, etc.
+- **Filtros nos endpoints:** Implementou filtros para agentes por cargo e ordenação, e para casos por status e agente_id — isso é um diferencial que mostra cuidado com a usabilidade da API.
+- **Bônus conquistados:** Você conseguiu implementar corretamente a filtragem simples por status e agente nos casos, o que já é um ótimo avanço! 🚀
 
-Em vários métodos dos seus controllers (`putAgente`, `patchAgente`, `createCaso`, `putCaso`, `patchCaso`), você está tentando acessar a propriedade `erro` do resultado da validação, mas o correto é `error`. Por exemplo, no `putAgente` você tem:
+---
+
+## Pontos para melhorar e destravar o restante do seu projeto 💡
+
+### 1. Atualização parcial (PATCH) de agentes e casos não está funcionando corretamente
+
+Percebi que os testes relacionados a atualizar parcialmente com PATCH tanto para agentes quanto para casos falharam. Isso indica que o seu código para esses endpoints está presente (ufa!), mas algo na lógica está impedindo que a atualização parcial funcione como esperado.
+
+Ao analisar seu controlador `patchAgente`:
 
 ```js
-function putAgente(req, res, next) {
-    const { erro } = formatoValido.validate(req.body, { abortEarly: false });
-    if (erro) {
-        return next({ status: 400, message: "Dados mal formatados.", errors: erro.details.map(d => d.message) });
+function patchAgente(req, res, next) {
+    const agenteProcurado = agentesRepository.findById(req.params.id);
+    if (!agenteProcurado) {
+        return res.status(404).send();
     }
-    // restante do código
-}
-```
-
-O correto seria:
-
-```js
-function putAgente(req, res, next) {
-    const { error } = formatoValido.validate(req.body, { abortEarly: false });
+    const dados = { ...agenteProcurado, ...req.body };
+    const { error } = formatoValido.validate(dados, { abortEarly: false });
     if (error) {
         return next({ status: 400, message: "Dados mal formatados.", errors: error.details.map(d => d.message) });
     }
-    // restante do código
+    const agenteAtualizado = agentesRepository.update(req.params.id, dados);
+    res.status(200).json(agenteAtualizado);
 }
 ```
 
-Esse detalhe faz com que a validação nunca entre no bloco de erro, e dados mal formatados passem sem o devido bloqueio, causando falhas nos testes de validação e status 400. ⚠️
+E `patchCaso`:
 
-**Dica:** sempre confira o nome das propriedades retornadas pelas funções das bibliotecas que você usa! Isso ajuda a evitar bugs silenciosos.
+```js
+function patchCaso(req, res, next) {
+    const casoProcurado = casosRepository.findById(req.params.id);
+    if (!casoProcurado) {
+        return res.status(404).send();
+    }
+    const dados = { ...casoProcurado, ...req.body };
+    const { error } = formatoValido.validate(dados, { abortEarly: false });
+    if (error) {
+        return next({ status: 400, message: "Dados mal formatados.", errors: error.details.map(d => d.message) });
+    }
+    const casoAtualizado = casosRepository.update(req.params.id, dados);
+    res.status(200).json(casoAtualizado);
+}
+```
+
+A lógica está correta em teoria, porém, o problema pode estar no método `update` do seu repositório. Veja que no seu `agentesRepository.update`:
+
+```js
+function update(id, dados) {
+    const indice = agentes.findIndex(agente => agente.id === id);
+    if (indice < 0) {
+        return null;
+    }
+    const { id: idDoPayload, ...resto } = dados;
+    agentes[indice] = { id, ...resto };
+    return agentes[indice];
+}
+```
+
+E no `casosRepository.update`:
+
+```js
+function update(id, dados) {
+    const indice = casos.findIndex(caso => caso.id === id);
+    if (indice < 0) {
+        return null;
+    }
+    const { id: idDoPayload, ...resto } = dados;
+    casos[indice] = { id, ...resto };
+    return casos[indice];
+}
+```
+
+Aqui está o ponto crucial: você está **substituindo todo o objeto** no array pelo novo objeto `{ id, ...resto }`. Isso é esperado para o método PUT (atualização completa), mas para PATCH (atualização parcial), você precisa garantir que os dados antigos sejam preservados e apenas os campos enviados sejam atualizados.
+
+No seu controlador PATCH você já faz a fusão dos dados:
+
+```js
+const dados = { ...agenteProcurado, ...req.body };
+```
+
+Mas no repositório, você sobrescreve tudo, o que está correto. Então o problema não está aqui.
+
+Então, o que pode estar acontecendo? Um ponto importante é que seu schema Joi proíbe o campo `id` no payload:
+
+```js
+id: joi.forbidden()
+```
+
+Mas na fusão dos dados, você está incluindo o `id` do objeto original, o que é correto. Portanto, o problema pode estar no fato de que, se o `req.body` incluir o campo `id` (mesmo que proibido), ele será descartado pelo Joi, mas no spread `{ ...agenteProcurado, ...req.body }` o `id` do agenteProcurado permanece.
+
+**Possível causa raiz:** Pode ser que, em alguma requisição PATCH, o corpo da requisição esteja enviando um campo `id` e o Joi esteja rejeitando, ou o seu teste espera algum tratamento diferente da resposta.
+
+**O que fazer?** Para garantir que o campo `id` nunca seja alterado, você pode explicitamente remover `id` do `req.body` antes da fusão, ou garantir que o Joi valide corretamente. Além disso, uma melhoria que pode ajudar é adicionar logs ou console para ver exatamente o que está chegando no corpo da requisição.
 
 ---
 
-### 2. Prevenção de alteração do campo `id` nos recursos `agentes` e `casos`
+### 2. Criar caso com agente_id inválido não retorna 404 como esperado
 
-Percebi que no seu código, tanto no `agentesController` quanto no `casosController`, você permite atualizar o campo `id` via PUT ou PATCH, porque na função `update` dos seus repositories você faz:
-
-```js
-const { id: idDoPayload, ...resto } = dados;
-agentes[indice] = { id, ...resto };
-```
-
-Ou seja, você está ignorando o `id` que vem no payload, o que é ótimo. Mas no controller, o Joi não está validando se o `id` está presente no payload, então ele pode ser enviado sem erro, e o usuário pode tentar alterar o `id` (mesmo que seu código ignore).
-
-O ideal é impedir que o `id` seja enviado no corpo da requisição para atualização, ou pelo menos validar que ele não esteja presente, para evitar confusão.
-
-**Como melhorar:**
-
-- Ajuste o schema Joi para não aceitar o campo `id` no payload de criação ou atualização.
-- Ou, no controller, faça uma verificação explícita para rejeitar payloads que contenham `id`.
-
-Exemplo para Joi (no `agentesController`):
-
-```js
-const formatoValido = joi.object({
-    nome: joi.string().min(1).required(),
-    dataDeIncorporacao: joi.date().iso().required(),
-    cargo: joi.string().min(1).required(),
-    id: joi.forbidden() // impede que o campo id seja enviado
-});
-```
-
-Assim, se alguém tentar enviar o campo `id`, a validação falhará. Isso evita que o ID seja alterado via API, o que é uma regra importante para manter a integridade dos dados.
-
----
-
-### 3. Validação dos campos obrigatórios em `casos` para evitar valores vazios ou inválidos
-
-Notei que seu schema Joi para `casos` está assim:
-
-```js
-const formatoValido = joi.object({
-    titulo: joi.string().min(1).required(),
-    descricao: joi.string().min(1).required(),
-    status: joi.string().valid('aberto', 'solucionado').required(),
-    agente_id: joi.string().guid().required()
-});
-```
-
-Isso está correto para validar `titulo` e `descricao` com pelo menos 1 caractere, e para garantir que o `status` seja "aberto" ou "solucionado". Porém, como você está usando `const { erro } = formatoValido.validate(...)` (com o erro de nome que comentei acima), essa validação não está sendo aplicada corretamente.
-
-Além disso, no método `createCaso`, você faz:
+Você implementou a validação para verificar se o agente existe antes de criar um caso:
 
 ```js
 if (!agentesRepository.findById(req.body.agente_id)) {
-    return next({ status: 400, message: "Agente não encontrado.", errors: erro.details.map(d => d.message) });
+    return next({ status: 400, message: "Agente não encontrado." });
 }
 ```
 
-Aqui, você está tentando usar `erro.details` mesmo que o erro seja do Joi, mas a variável `erro` pode estar indefinida. Isso pode causar erros inesperados.
+O problema aqui é o status code retornado: você está usando **400 Bad Request**, mas o correto para recurso não encontrado é **404 Not Found**.
 
-**Como melhorar:**
+Isso faz sentido porque o `agente_id` refere-se a um recurso externo (o agente), que não existe. Portanto, o cliente está solicitando criar um caso com um id de agente inexistente, o que configura um recurso não encontrado.
 
-- Corrigir o nome da variável para `error`.
-- Para o erro de agente não encontrado, envie uma mensagem clara, mas não tente mapear `error.details` que não existe nesse contexto.
+**Como corrigir?**
 
-Exemplo corrigido:
+Troque o status para 404:
 
 ```js
-function createCaso(req, res, next) {
-    const { error } = formatoValido.validate(req.body, { abortEarly: false });
-    if (error) {
-        return next({ status: 400, message: "Dados mal formatados.", errors: error.details.map(d => d.message) });
-    }
-    if (!agentesRepository.findById(req.body.agente_id)) {
-        return next({ status: 400, message: "Agente não encontrado." });
-    }
-    const casoNovo = casosRepository.create(req.body);
-    res.status(201).json(casoNovo);
+if (!agentesRepository.findById(req.body.agente_id)) {
+    return next({ status: 404, message: "Agente não encontrado." });
 }
 ```
 
+Assim, a API estará seguindo o padrão REST de forma mais correta e clara.
+
 ---
 
-### 4. Implementação de filtros para o endpoint `/casos`
+### 3. Filtros e ordenações avançadas para agentes e casos ainda não implementados
 
-Vi que você implementou filtros e ordenação para os agentes, mas não encontrei essa lógica para os casos, mesmo que os testes tenham esperado filtros por status, agente e palavras-chave no título/descrição.
+Você implementou filtros simples para agentes por cargo e ordenação com base em um campo, mas o teste indica que a filtragem por data de incorporação com ordenação (asc e desc) não está funcionando.
 
-Para implementar filtros em `/casos`, você pode fazer algo parecido com o que fez para agentes, usando query params:
+No seu código `getAllAgentes`:
 
 ```js
-function getAllCasos(req, res) {
-    const { status, agente_id, busca } = req.query;
-    let casos = casosRepository.findAll();
+const { cargo, ordenacao } = req.query;
+let agentes = agentesRepository.findAll();
 
-    if (status) {
-        casos = casos.filter(caso => caso.status === status);
-    }
-    if (agente_id) {
-        casos = casos.filter(caso => caso.agente_id === agente_id);
-    }
-    if (busca) {
-        const termo = busca.toLowerCase();
-        casos = casos.filter(caso => 
-            caso.titulo.toLowerCase().includes(termo) ||
-            caso.descricao.toLowerCase().includes(termo)
-        );
-    }
+if (cargo) {
+    agentes = agentes.filter(agente => agente.cargo === cargo);
+}
 
-    res.status(200).json(casos);
+if (ordenacao) {
+    const ordem = ordenacao.startsWith('-') ? 'desc' : 'asc';
+    const campo = ordenacao.replace('-', '');
+    agentes.sort((a, b) => {
+        if (a[campo] > b[campo]) return ordem === 'asc' ? 1 : -1;
+        if (a[campo] < b[campo]) return ordem === 'asc' ? -1 : 1;
+        return 0;
+    });
 }
 ```
 
-Assim, você oferece uma API mais flexível e atende aos requisitos extras que foram esperados.
+Aqui, você está esperando que o parâmetro `ordenacao` seja algo como `dataDeIncorporacao` ou `-dataDeIncorporacao`. Porém, o teste espera que a filtragem por data de incorporação funcione.
+
+**Possível causa raiz:** Pode ser que o campo `dataDeIncorporacao` esteja armazenado como string e a comparação não funcione corretamente para ordenação de datas.
+
+**Como melhorar?**
+
+Converter as datas para objetos Date na hora da ordenação para garantir que a comparação funcione:
+
+```js
+agentes.sort((a, b) => {
+    let valA = a[campo];
+    let valB = b[campo];
+    if (campo === 'dataDeIncorporacao') {
+        valA = new Date(valA);
+        valB = new Date(valB);
+    }
+    if (valA > valB) return ordem === 'asc' ? 1 : -1;
+    if (valA < valB) return ordem === 'asc' ? -1 : 1;
+    return 0;
+});
+```
+
+Isso vai garantir que a ordenação funcione corretamente para datas e outros campos.
 
 ---
 
-### 5. Organização e estrutura do projeto
+### 4. Mensagens de erro customizadas para argumentos inválidos ainda não estão implementadas
 
-Sua estrutura de arquivos está muito bem organizada, seguindo o padrão esperado com pastas separadas para `routes`, `controllers`, `repositories`, `docs` e `utils`. Isso é excelente! 👍
+Você já usa um middleware para tratamento de erros e repassa mensagens do Joi, mas os testes apontam que as mensagens de erro customizadas para argumentos inválidos de agentes e casos não estão presentes.
 
-Só uma dica: no seu `docs`, o arquivo é `swagger.json`, mas o ideal é que seja um arquivo `.js` exportando o objeto JSON para facilitar o uso no `swagger-ui-express`. Mas isso não é um erro, apenas uma sugestão para facilitar a manutenção.
+No seu middleware `errorHandler.js` (não enviado aqui, mas que você incluiu no `server.js`), é importante que você trate os erros personalizados para enviar um corpo de resposta com uma estrutura clara, por exemplo:
 
----
+```js
+function errorHandler(err, req, res, next) {
+    if (err.status && err.message) {
+        return res.status(err.status).json({
+            error: err.message,
+            details: err.errors || []
+        });
+    }
+    console.error(err);
+    res.status(500).json({ error: "Erro interno no servidor" });
+}
+```
 
-### Para você continuar evoluindo 🚀
-
-- Corrija o nome da variável de erro do Joi para `error` em todos os controllers.
-- Garanta que o campo `id` não possa ser criado ou alterado via payload, usando `joi.forbidden()` no schema.
-- Melhore o tratamento de erro para quando o agente não for encontrado no `createCaso`.
-- Implemente filtros para o endpoint `/casos` para status, agente e palavras-chave.
-- Continue explorando a validação e o tratamento de erros personalizados para dar uma experiência melhor para quem usa sua API.
-
----
-
-## Recursos que vão te ajudar muito! 📚
-
-- [Validação de dados em APIs Node.js/Express com Joi](https://youtu.be/yNDCRAz7CM8?si=Lh5u3j27j_a4w3A_) — para entender melhor como validar e tratar erros.
-- [Documentação oficial do Express sobre roteamento](https://expressjs.com/pt-br/guide/routing.html) — para aprofundar sobre organização das rotas.
-- [Como usar status codes HTTP corretamente](https://developer.mozilla.org/pt-BR/docs/Web/HTTP/Status) — para garantir que sua API responde com os códigos corretos.
-- [Manipulação de arrays em JavaScript](https://youtu.be/glSgUKA5LjE?si=t9G2NsC8InYAU9cI) — para filtrar e ordenar seus dados em memória.
+Se seu middleware não está assim, recomendo ajustar para que as mensagens de erro sejam consistentes e amigáveis.
 
 ---
 
-## Resumo Rápido para Você Focar 🎯
+## Sobre a estrutura do projeto 🗂️
 
-- ⚠️ Corrigir o uso da variável `error` do Joi (não `erro`).
-- 🚫 Impedir alteração/criação do campo `id` via payload, usando `joi.forbidden()`.
-- ✔️ Ajustar tratamento de erro para agente inexistente no `createCaso`.
-- 🔍 Implementar filtros no endpoint `/casos` para status, agente e busca por palavras.
-- 📚 Continuar usando arquitetura modular e tratamento de erros customizados.
+Sua estrutura está perfeita, seguindo exatamente o esperado:
+
+```
+.
+├── controllers/
+├── repositories/
+├── routes/
+├── utils/
+├── docs/
+├── server.js
+├── package.json
+```
+
+Isso facilita muito a manutenção e entendimento do projeto. Parabéns por isso! 👏
 
 ---
 
-Barbara, você está no caminho certo e com um código bem estruturado! Com esses ajustes, sua API vai ficar muito mais sólida e confiável. Continue praticando e explorando essas boas práticas, pois isso fará toda a diferença na sua jornada como desenvolvedora backend! 🚀✨
+## Recomendações de aprendizado para você continuar evoluindo 📚
 
-Se precisar de ajuda para implementar qualquer um desses pontos, me chama que eu te ajudo com o maior prazer! 😉
+- Para entender melhor como funciona o fluxo de requisição e resposta no Express e o tratamento de erros, recomendo este vídeo que é super didático:  
+  https://youtu.be/Bn8gcSQH-bc?si=Df4htGoVrV0NR7ri
 
-Um abraço e até a próxima revisão! 👮‍♀️💻
+- Para aprofundar seu conhecimento em validação de dados com Joi e tratamento de erros HTTP, este vídeo vai te ajudar demais:  
+  https://youtu.be/yNDCRAz7CM8?si=Lh5u3j27j_a4w3A_
+
+- Para garantir que você domine o uso de arrays em JavaScript, essencial para manipular dados em memória, recomendo este conteúdo:  
+  https://youtu.be/glSgUKA5LjE?si=t9G2NsC8InYAU9cI
+
+- E para entender a arquitetura MVC e como organizar seu projeto Node.js, este vídeo é uma mão na roda:  
+  https://youtu.be/bGN_xNc4A1k?si=Nj38J_8RpgsdQ-QH
+
+---
+
+## Resumo dos principais pontos para você focar agora 🎯
+
+- [ ] Ajustar o status code para 404 ao criar um caso com `agente_id` inválido (não encontrado).
+- [ ] Revisar e testar a lógica de atualização parcial (PATCH) para agentes e casos, garantindo que o Joi e o repositório estejam alinhados e que o campo `id` nunca seja alterado.
+- [ ] Melhorar a ordenação por `dataDeIncorporacao` no endpoint de agentes, convertendo strings para Date para ordenar corretamente.
+- [ ] Implementar mensagens de erro customizadas e consistentes no middleware de tratamento de erros para argumentos inválidos, com corpo de resposta claro.
+- [ ] Continuar explorando os filtros avançados para casos (busca por keywords no título/descrição) e agentes (filtro por data de incorporação).
+
+---
+
+Você está muito próximo de entregar uma API robusta e bem feita! 🚀 Continue nesse ritmo, revisando esses detalhes que vão deixar seu código ainda mais profissional e alinhado com as boas práticas do mercado.
+
+Se precisar, volte aos recursos que indiquei para se aprofundar e, claro, conte comigo para qualquer dúvida! 💪😉
+
+Boa jornada! 👮‍♀️✨
+
+---
+
+Se quiser, posso te ajudar a revisar algum trecho específico do seu código para essas melhorias. É só chamar!
 
 > Caso queira tirar uma dúvida específica, entre em contato com o Chapter no nosso [discord](https://discord.gg/DryuHVnz).
 
