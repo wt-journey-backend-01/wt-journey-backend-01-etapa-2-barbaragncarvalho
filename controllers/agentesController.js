@@ -8,6 +8,13 @@ const formatoValido = joi.object({
     id: joi.forbidden()
 });
 
+const formatoPatch = joi.object({
+    nome: joi.string().min(1),
+    dataDeIncorporacao: joi.date().iso(),
+    cargo: joi.string().min(1),
+    id: joi.forbidden()
+});
+
 function getAllAgentes(req, res) {
     const { cargo, ordenacao, dataInicio, dataFim } = req.query;
     let agentes = agentesRepository.findAll();
@@ -23,9 +30,14 @@ function getAllAgentes(req, res) {
             return true;
         });
     }
+    const camposValidos = ['nome', 'cargo', 'dataDeIncorporacao'];
     if (ordenacao) {
         const dir = ordenacao.startsWith('-') ? -1 : 1;
         const campo = ordenacao.replace('-', '');
+        
+        if (!camposValidos.includes(campo)) {
+            return res.status(400).json({ message: `Campo de ordenação inválido: ${campo}` });
+        }
         agentes.sort((a, b) => {
             let va = a[campo];
             let vb = b[campo];
@@ -84,7 +96,7 @@ function patchAgente(req, res, next) {
     delete req.body.id;
     const dados = { ...original, ...req.body };
 
-    const { error } = formatoValido.validate(dados, { abortEarly: false });
+    const { error } = formatoPatch.validate(dados, { abortEarly: false });
     if (error) {
         return next({
             status: 400,
@@ -92,7 +104,6 @@ function patchAgente(req, res, next) {
             errors: error.details.map(d => d.message)
         });
     }
-
     const agenteAtualizado = agentesRepository.update(req.params.id, dados);
     res.status(200).json(agenteAtualizado);
 }

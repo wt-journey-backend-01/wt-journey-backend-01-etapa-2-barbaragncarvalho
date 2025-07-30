@@ -10,6 +10,14 @@ const formatoValido = joi.object({
     id: joi.forbidden()
 });
 
+const formatoPatch = joi.object({
+    titulo: joi.string().min(1),
+    descricao: joi.string().min(1),
+    status: joi.string().valid('aberto', 'solucionado'),
+    agente_id: joi.string().guid(),
+    id: joi.forbidden()
+});
+
 function getAllCasos(req, res) {
     const { status, agente_id, busca } = req.query;
     let casos = casosRepository.findAll();
@@ -71,8 +79,8 @@ function patchCaso(req, res, next) {
 
     delete req.body.id;
     const dados = { ...original, ...req.body };
-    
-    const { error } = formatoValido.validate(dados, { abortEarly: false });
+
+    const { error } = formatoPatch.validate(dados, { abortEarly: false });
     if (error) {
         return next({
             status: 400,
