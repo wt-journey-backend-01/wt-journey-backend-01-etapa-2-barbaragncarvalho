@@ -1,72 +1,35 @@
 <sup>Esse é um feedback gerado por IA, ele pode conter erros.</sup>
 
-Você tem 5 créditos restantes para usar o sistema de feedback AI.
+Você tem 4 créditos restantes para usar o sistema de feedback AI.
 
 # Feedback para barbaragncarvalho:
 
-Nota final: **86.9/100**
+Nota final: **90.3/100**
 
-Olá, barbaragncarvalho! 👋✨
-
-Primeiramente, parabéns pelo seu esforço e dedicação em construir essa API para o Departamento de Polícia! 🎉 Você organizou muito bem seu projeto, estruturando rotas, controllers e repositories, e implementou com sucesso uma boa parte das funcionalidades obrigatórias. Isso já é um baita avanço! 🚀 Além disso, mandou bem nos bônus de filtragem simples para casos por status e agente, o que mostra que você foi além do básico — isso é incrível! 👏👏
+Olá, Barbara! 👋🚓 Que alegria revisar seu código e ver todo seu esforço nessa API para o Departamento de Polícia! Primeiramente, parabéns pela organização do projeto e pela implementação robusta dos recursos principais. Você mandou muito bem em vários aspectos! 🎉
 
 ---
 
-## Vamos analisar juntos os pontos que podem ser melhorados para deixar sua API ainda mais robusta e alinhada com o que se espera. 🕵️‍♂️🔍
+## 🎉 Pontos Fortes que Merecem Destaque
+
+- Sua arquitetura modular está muito bem feita: você separou direitinho as rotas, controllers e repositories, o que deixa o código limpo e fácil de manter. Isso é fundamental para projetos escaláveis! 👏  
+- A validação com Joi para agentes e casos está bem estruturada, garantindo que os dados recebidos estejam no formato esperado.  
+- O tratamento de erros com middleware (`errorHandler`) está implementado e integrado, o que é ótimo para manter a API consistente.  
+- Você implementou todos os métodos HTTP (GET, POST, PUT, PATCH, DELETE) para os recursos `/agentes` e `/casos` — muito bom!  
+- Os filtros e ordenações para agentes e casos estão funcionando em boa parte, o que mostra domínio na manipulação dos dados em memória.  
+- Além disso, parabéns por implementar os bônus que funcionaram, como a filtragem por status e agente para casos! Isso enriquece bastante sua API. 🌟
 
 ---
 
-### 1. Problema com a listagem completa de agentes e atualização parcial via PATCH
+## 🕵️ Análise de Pontos que Precisam de Atenção
 
-Você mencionou que a listagem de todos os agentes (`GET /agentes`) e a atualização parcial de agentes (`PATCH /agentes/:id`) não estão funcionando corretamente.
+### 1. Atualização Parcial com PATCH em Agentes e Casos
 
-Ao analisar o seu arquivo `controllers/agentesController.js`, encontrei um possível motivo que impacta diretamente esses dois pontos:
+Você implementou os métodos PATCH para atualização parcial, mas percebi que dois testes relacionados a isso não passaram. Vamos entender juntos o que pode estar acontecendo.
 
-```js
-function getAllAgentes(req, res) {
-    const { cargo, ordenacao, dataInicio, dataFim } = req.query;
-    let agentes = repoAgentes.findAll();
-
-    // ... filtros e ordenação
-}
-```
-
-Repare que você está usando `repoAgentes.findAll()` para buscar os agentes, mas na sua importação no topo do arquivo você fez assim:
+No seu `agentesController.js`, na função `patchAgente`, você faz:
 
 ```js
-const agentesRepository = require("../repositories/agentesRepository");
-```
-
-Ou seja, o nome correto da variável é `agentesRepository`, mas você está chamando `repoAgentes`, que não existe. Isso provavelmente está causando um erro silencioso, e seu endpoint não está retornando os agentes corretamente.
-
-**Correção:**
-
-Troque a linha
-
-```js
-let agentes = repoAgentes.findAll();
-```
-
-por
-
-```js
-let agentes = agentesRepository.findAll();
-```
-
-Esse mesmo problema pode afetar outros métodos que usam `repoAgentes` ao invés de `agentesRepository`. É importante manter consistência no nome da variável importada.
-
----
-
-### 2. Atualização parcial de agente (PATCH) não funcionando
-
-No seu método `patchAgente`, você faz:
-
-```js
-const original = agentesRepository.findById(req.params.id);
-if (!original) {
-    return res.status(404).json({ message: "Agente não encontrado." });
-}
-
 delete req.body.id;
 const dados = { ...original, ...req.body };
 
@@ -83,38 +46,50 @@ const agenteAtualizado = agentesRepository.update(req.params.id, dados);
 res.status(200).json(agenteAtualizado);
 ```
 
-Aqui a lógica está correta, mas se o `findById` estiver falhando (por causa do problema de importação citado acima), você nunca encontrará o agente para atualizar.
+E no `casosController.js`, função `patchCaso`, a lógica é parecida.
 
-Portanto, a raiz do problema é o mesmo erro na importação do repositório.
+**O que pode estar acontecendo?**  
+O esquema `formatoValido` que você definiu com Joi exige que todos os campos estejam presentes, pois todos são `.required()`. Porém, no PATCH, a ideia é atualizar parcialmente, ou seja, o cliente pode enviar só um ou dois campos para alterar.
+
+Quando você faz a validação do objeto `dados` completo (que junta o original + o que veio no body), isso parece correto, mas o Joi ainda exige todos os campos porque `formatoValido` não está preparado para validação parcial.
+
+**Como resolver?**  
+Você pode criar um esquema Joi separado para PATCH, onde os campos não sejam obrigatórios, apenas validados se existirem. Por exemplo:
+
+```js
+const formatoPatch = joi.object({
+    nome: joi.string().min(1),
+    dataDeIncorporacao: joi.date().iso(),
+    cargo: joi.string().min(1),
+    id: joi.forbidden()
+});
+```
+
+E na função `patchAgente`, validar com esse esquema:
+
+```js
+const { error } = formatoPatch.validate(req.body, { abortEarly: false });
+if (error) {
+    return next({
+        status: 400,
+        message: 'Dados mal formatados.',
+        errors: error.details.map(d => d.message)
+    });
+}
+```
+
+Depois você junta o `original` com o `req.body` e atualiza.
+
+Esse ajuste vai permitir que o PATCH aceite atualizações parciais e valide corretamente os dados enviados.
+
+**Recomendo muito esse vídeo para entender melhor validação com Joi e PATCH:**  
+https://youtu.be/yNDCRAz7CM8?si=Lh5u3j27j_a4w3A_
 
 ---
 
-### 3. Atualização parcial de caso (PATCH) com problemas semelhantes
+### 2. Criação de Caso com ID de Agente Inválido/Inexistente
 
-No arquivo `controllers/casosController.js`, seu método `patchCaso` está bem estruturado, porém, se a importação do `casosRepository` estiver correta (que aparentemente está), o problema pode estar em outro ponto.
-
-Fique atento se você está validando corretamente os dados e removendo o campo `id` do payload antes de atualizar:
-
-```js
-delete req.body.id;
-const dados = { ...original, ...req.body };
-```
-
-Isso está correto.
-
-Se o endpoint não está funcionando, verifique se a rota está registrada corretamente em `routes/casosRoutes.js`:
-
-```js
-router.patch('/casos/:id', casosController.patchCaso);
-```
-
-Você fez isso corretamente. Então, o problema pode estar relacionado a como você está lidando com erros no middleware `errorHandler` (que não foi mostrado aqui). Certifique-se que ele está capturando os erros passados via `next()` e retornando o status e mensagens adequadas. Caso contrário, o cliente pode não receber o status 400 esperado.
-
----
-
-### 4. Criar caso com `agente_id` inválido não retorna 404 corretamente
-
-No seu método `createCaso` você tem:
+Você fez uma verificação muito correta para garantir que o `agente_id` enviado na criação do caso realmente exista:
 
 ```js
 if (!agentesRepository.findById(req.body.agente_id)) {
@@ -122,86 +97,149 @@ if (!agentesRepository.findById(req.body.agente_id)) {
 }
 ```
 
-Essa é a abordagem correta para validar se o agente existe antes de criar um caso.
+Isso é ótimo! Mas percebi que o teste que verifica se o status 404 é retornado ao criar um caso com agente inválido falhou.
 
-Porém, para que essa resposta funcione, seu middleware de tratamento de erros (`errorHandler`) precisa estar configurado para capturar o erro enviado via `next()` e devolver o status e a mensagem corretamente.
+**O que pode estar acontecendo?**
 
-No `server.js`, você tem:
+No seu middleware de erro (`errorHandler.js`, que você não enviou, mas imagino que exista), você está usando `next()` para enviar o erro, o que é correto. Porém, pode ser que o middleware não esteja configurado para enviar o status 404 corretamente, ou que o fluxo do `next()` não esteja sendo tratado de forma consistente.
 
-```js
-app.use(errorHandler);
-```
+Além disso, no seu `server.js`, a ordem dos middlewares está correta, você colocou o `errorHandler` por último, o que é ótimo.
 
-Ótimo, mas como não vi o conteúdo do `errorHandler.js`, sugiro revisar se ele está assim:
+**Sugestão:**  
+Verifique se no seu `errorHandler` você está tratando o `status` 404 e outros erros personalizados corretamente, enviando o JSON com a mensagem e o status esperado.
+
+Por exemplo, seu `errorHandler` deve ter algo como:
 
 ```js
 function errorHandler(err, req, res, next) {
-    if (err.status) {
-        res.status(err.status).json({ message: err.message, errors: err.errors || [] });
-    } else {
-        res.status(500).json({ message: "Erro interno do servidor." });
-    }
+    const status = err.status || 500;
+    const message = err.message || 'Erro interno do servidor';
+    const errors = err.errors || [];
+    res.status(status).json({ message, errors });
 }
-module.exports = errorHandler;
 ```
 
-Se o seu middleware não estiver assim, adapte-o para garantir que os erros personalizados com `next({ status, message })` sejam tratados corretamente.
+Se não estiver assim, ajuste para garantir que os erros personalizados cheguem até o cliente.
 
 ---
 
-### 5. Filtros avançados de agentes e mensagens de erro customizadas (Bônus) ainda não estão completos
+### 3. Filtros e Ordenação para Agentes por Data de Incorporação
 
-Você implementou filtros básicos para casos, mas os filtros para agentes por data de incorporação com ordenação (ascendente e descendente) e mensagens de erro personalizadas para argumentos inválidos ainda não estão funcionando.
+Você implementou filtros e ordenação para agentes, inclusive por data de incorporação, o que é ótimo! Mas os testes indicam que a filtragem por data com ordenação crescente e decrescente não funcionaram 100%.
 
-No seu método `getAllAgentes`, a lógica para ordenar está presente, mas o problema do nome da variável `repoAgentes` impede que funcione.
-
-Além disso, para mensagens de erro customizadas, seu uso do Joi está correto, porém, para que o cliente receba essas mensagens, o middleware `errorHandler` precisa repassar o array `errors` que você está enviando no `next()`.
-
----
-
-### 6. Organização da Estrutura de Diretórios e Arquivos
-
-Sua estrutura está muito próxima do esperado, parabéns! 👏
-
-Um detalhe que pode melhorar: no seu `docs`, você tem um arquivo `swagger.json`, mas no `server.js` você importa `./docs/swagger`, que parece ser um arquivo `.js` (ou `.json`?).
-
-Se você quiser usar o JSON diretamente, importe com a extensão `.json`:
+Ao analisar seu código em `agentesController.js`, na função `getAllAgentes`, você faz:
 
 ```js
-const swaggerDocs = require('./docs/swagger.json');
+if (dataInicio || dataFim) {
+    agentes = agentes.filter(a => {
+        const dt = new Date(a.dataDeIncorporacao);
+        if (dataInicio && dt < new Date(dataInicio)) return false;
+        if (dataFim && dt > new Date(dataFim)) return false;
+        return true;
+    });
+}
+if (ordenacao) {
+    const dir = ordenacao.startsWith('-') ? -1 : 1;
+    const campo = ordenacao.replace('-', '');
+    agentes.sort((a, b) => {
+        let va = a[campo];
+        let vb = b[campo];
+        if (campo === 'dataDeIncorporacao') {
+            va = new Date(va);
+            vb = new Date(vb);
+        }
+        if (va > vb) return dir;
+        if (va < vb) return -dir;
+        return 0;
+    });
+}
 ```
 
-Ou converta seu `swagger.json` para um arquivo `.js` que exporte o objeto.
+**Possível causa do problema:**  
+O parâmetro `ordenacao` pode estar chegando com valores inesperados, ou você não está validando se o campo passado para ordenação é válido, o que pode gerar comportamentos inesperados.
 
-Essa atenção evita problemas na documentação automática da API.
+**Sugestão:**  
+- Valide se o campo de ordenação é um dos permitidos (`nome`, `cargo`, `dataDeIncorporacao`).
+- Garanta que o parâmetro `dataInicio` e `dataFim` sejam datas válidas antes de usar no filtro.
+- Considere usar `toISOString()` para comparar datas para evitar problemas de timezone.
 
----
+Exemplo de validação simples:
 
-## Recomendações de Estudos 📚
-
-- Para entender melhor como importar e usar corretamente seus repositórios e evitar erros de nomes, dê uma olhada neste vídeo sobre [Arquitetura MVC em Node.js](https://youtu.be/bGN_xNc4A1k?si=Nj38J_8RpgsdQ-QH). Ele vai ajudar a fixar a organização do projeto.
-
-- Para garantir o correto tratamento de erros e status HTTP, recomendo revisar o vídeo [Validação e Tratamento de Erros em APIs Node.js](https://youtu.be/yNDCRAz7CM8?si=Lh5u3j27j_a4w3A_).
-
-- Para aprimorar a manipulação de arrays e filtros, este vídeo é excelente: [Manipulação de Arrays em JavaScript](https://youtu.be/glSgUKA5LjE?si=t9G2NsC8InYAU9cI).
-
----
-
-## Resumo dos Pontos para Focar 📝
-
-- ⚠️ Corrigir o nome da variável do repositório no `agentesController` de `repoAgentes` para `agentesRepository` para garantir que os dados sejam acessados corretamente.
-
-- ⚠️ Revisar o middleware `errorHandler` para garantir que erros enviados via `next()` com status e mensagens personalizadas sejam retornados corretamente ao cliente.
-
-- ⚠️ Verificar e ajustar a importação do arquivo Swagger para que a documentação funcione sem problemas.
-
-- ⚠️ Continuar aprimorando os filtros avançados para agentes (data de incorporação com ordenação) e mensagens de erro customizadas para elevar sua API ao próximo nível.
+```js
+const camposValidos = ['nome', 'cargo', 'dataDeIncorporacao'];
+if (ordenacao) {
+    const dir = ordenacao.startsWith('-') ? -1 : 1;
+    const campo = ordenacao.replace('-', '');
+    if (!camposValidos.includes(campo)) {
+        return res.status(400).json({ message: `Campo de ordenação inválido: ${campo}` });
+    }
+    // restante do código de sort...
+}
+```
 
 ---
 
-Você está no caminho certo, barbaragncarvalho! 👏✨ Com esses ajustes, sua API vai ficar muito mais robusta e confiável. Continue assim, aprendendo e aprimorando seu código com curiosidade e paciência. Se precisar, volte aqui que estarei sempre pronto para ajudar! 🚀💙
+### 4. Mensagens de Erro Customizadas para Argumentos Inválidos
 
-Um abraço de Code Buddy! 🤖👨‍💻👩‍💻
+Os testes bônus indicam que as mensagens de erro customizadas para argumentos inválidos não estão funcionando perfeitamente.
+
+Você já está retornando mensagens personalizadas com arrays de erros do Joi, o que é ótimo:
+
+```js
+return next({ status: 400, message: "Dados mal formatados.", errors: error.details.map(d => d.message) });
+```
+
+**Possível ajuste:**  
+Para deixar as mensagens ainda mais claras e consistentes, você pode formatar as mensagens de erro para serem mais amigáveis, por exemplo:
+
+```js
+errors: error.details.map(d => `${d.context.label} - ${d.message}`)
+```
+
+Ou criar um middleware que padronize todos os erros, incluindo os 404, para que o cliente receba sempre um formato uniforme.
+
+---
+
+## 🗂️ Sobre a Estrutura do Projeto
+
+Sua estrutura de diretórios está exatamente conforme o esperado! Isso é muito importante para manter a organização e facilitar o entendimento do projeto. Parabéns por isso! 👏
+
+---
+
+## 🎯 Recapitulando para te ajudar a avançar
+
+- [ ] Ajustar a validação para PATCH, criando esquemas Joi que aceitem campos opcionais.  
+- [ ] Verificar o middleware de erro para garantir que os status personalizados (404, 400) sejam enviados corretamente e com mensagens amigáveis.  
+- [ ] Validar os parâmetros de filtro e ordenação para agentes, garantindo que só campos permitidos sejam usados e que datas sejam válidas.  
+- [ ] Melhorar a formatação das mensagens de erro para que fiquem claras e padronizadas para o cliente.  
+
+---
+
+## 📚 Recomendações de Aprendizado para Você
+
+- Para entender melhor como validar dados parcialmente com Joi e tratar erros:  
+  https://youtu.be/yNDCRAz7CM8?si=Lh5u3j27j_a4w3A_  
+- Para aprofundar em organização de rotas e controllers no Express.js:  
+  https://expressjs.com/pt-br/guide/routing.html  
+- Para dominar a arquitetura MVC em Node.js e Express:  
+  https://youtu.be/bGN_xNc4A1k?si=Nj38J_8RpgsdQ-QH  
+- Para entender melhor o protocolo HTTP, status codes e métodos:  
+  https://youtu.be/RSZHvQomeKE?si=PSkGqpWSRY90Ded5  
+
+---
+
+## 💡 Resumo dos Principais Pontos para Melhorar
+
+- Crie um esquema Joi específico para validação parcial (PATCH) para agentes e casos.  
+- Confirme que seu middleware de erro está enviando corretamente status e mensagens personalizadas.  
+- Valide os parâmetros de ordenação e filtros para evitar valores inválidos.  
+- Considere melhorar a legibilidade das mensagens de erro para o cliente.  
+
+---
+
+Barbara, você está no caminho certo e seu código mostra um entendimento sólido dos conceitos! 🚀 Com esses ajustes, sua API vai ficar ainda mais robusta e alinhada com as melhores práticas. Continue assim, com essa dedicação e atenção aos detalhes! Se precisar, estou aqui para ajudar! 😉
+
+Um abraço forte e até a próxima revisão! 🤝✨
 
 > Caso queira tirar uma dúvida específica, entre em contato com o Chapter no nosso [discord](https://discord.gg/DryuHVnz).
 
