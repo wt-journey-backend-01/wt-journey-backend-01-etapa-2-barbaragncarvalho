@@ -12,7 +12,7 @@ const swaggerUi = require("swagger-ui-express");
 app.use(agentesRouter);
 app.use(casosRouter);
 
-const swaggerDocs = require('./docs/swagger');
+const swaggerDocs = require('./docs/swagger.json');
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 app.use(errorHandler);

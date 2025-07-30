@@ -1,12 +1,9 @@
 function errorHandler(err, req, res, next) {
-    if (err.status && err.message) {
-        return res.status(err.status).json({
-            error: err.message,
-            details: err.errors || []
-        });
+    if (err.status) {
+        res.status(err.status).json({ message: err.message, errors: err.errors || [] });
+    } else {
+        res.status(500).json({ message: "Erro interno do servidor." });
     }
-    console.error(err);
-    res.status(500).json({ error: "Erro interno no servidor" });
 }
 
 module.exports = errorHandler;

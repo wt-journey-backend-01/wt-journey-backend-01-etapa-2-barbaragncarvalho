@@ -10,7 +10,7 @@ const formatoValido = joi.object({
 
 function getAllAgentes(req, res) {
     const { cargo, ordenacao, dataInicio, dataFim } = req.query;
-    let agentes = repoAgentes.findAll();
+    let agentes = agentesRepository.findAll();
 
     if (cargo) {
         agentes = agentes.filter(a => a.cargo === cargo);
