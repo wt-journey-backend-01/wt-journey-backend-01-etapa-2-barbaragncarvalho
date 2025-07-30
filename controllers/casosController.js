@@ -45,7 +45,7 @@ function createCaso(req, res, next) {
         return next({ status: 400, message: "Dados mal formatados.", errors: error.details.map(d => d.message) });
     }
     if (!agentesRepository.findById(req.body.agente_id)) {
-        return next({ status: 400, message: "Agente não encontrado." });
+        return next({ status: 404, message: "Agente não encontrado." });
     }
     const casoNovo = casosRepository.create(req.body);
     res.status(201).json(casoNovo);
@@ -64,15 +64,22 @@ function putCaso(req, res, next) {
 }
 
 function patchCaso(req, res, next) {
-    const casoProcurado = casosRepository.findById(req.params.id);
-    if (!casoProcurado) {
-        return res.status(404).send();
+    const original = repo.findById(req.params.id);
+    if (!original) {
+        return res.status(404).end();
     }
-    const dados = { ...casoProcurado, ...req.body };
+
+    const { id: _ignored, ...updates } = req.body;
+    const dados = { ...original, ...updates };
     const { error } = formatoValido.validate(dados, { abortEarly: false });
     if (error) {
-        return next({ status: 400, message: "Dados mal formatados.", errors: error.details.map(d => d.message) });
+        return next({
+            status: 400,
+            message: 'Dados mal formatados.',
+            errors: error.details.map(d => d.message)
+        });
     }
+
     const casoAtualizado = casosRepository.update(req.params.id, dados);
     res.status(200).json(casoAtualizado);
 }

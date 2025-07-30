@@ -20,8 +20,14 @@ function getAllAgentes(req, res) {
         const ordem = ordenacao.startsWith('-') ? 'desc' : 'asc';
         const campo = ordenacao.replace('-', '');
         agentes.sort((a, b) => {
-            if (a[campo] > b[campo]) return ordem === 'asc' ? 1 : -1;
-            if (a[campo] < b[campo]) return ordem === 'asc' ? -1 : 1;
+            let valA = a[campo];
+            let valB = b[campo];
+            if (campo === 'dataDeIncorporacao') {
+                valA = new Date(valA);
+                valB = new Date(valB);
+            }
+            if (valA > valB) return ordem === 'asc' ? 1 : -1;
+            if (valA < valB) return ordem === 'asc' ? -1 : 1;
             return 0;
         });
     }
@@ -63,15 +69,23 @@ function putAgente(req, res, next) {
 }
 
 function patchAgente(req, res, next) {
-    const agenteProcurado = agentesRepository.findById(req.params.id);
-    if (!agenteProcurado) {
+    const original = agentesRepository.findById(req.params.id);
+    if (!original) {
         return res.status(404).send();
     }
-    const dados = { ...agenteProcurado, ...req.body };
+
+    delete req.body.id;
+    const dados = { ...original, ...req.body };
+
     const { error } = formatoValido.validate(dados, { abortEarly: false });
     if (error) {
-        return next({ status: 400, message: "Dados mal formatados.", errors: error.details.map(d => d.message) });
+        return next({
+            status: 400,
+            message: 'Dados mal formatados.',
+            errors: error.details.map(d => d.message)
+        });
     }
+
     const agenteAtualizado = agentesRepository.update(req.params.id, dados);
     res.status(200).json(agenteAtualizado);
 }

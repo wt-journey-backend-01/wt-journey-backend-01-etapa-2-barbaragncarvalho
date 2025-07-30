@@ -1,7 +1,12 @@
-module.exports = (err, req, res, next) => {
-    if (err.status && err.errors) {
-        return res.status(err.status).json({ status: err.status, message: err.message, errors: err.errors });
+function errorHandler(err, req, res, next) {
+    if (err.status && err.message) {
+        return res.status(err.status).json({
+            error: err.message,
+            details: err.errors || []
+        });
     }
     console.error(err);
-    res.status(500).json({ status: 500, message: 'Erro interno do servidor.' });
-};
+    res.status(500).json({ error: "Erro interno no servidor" });
+}
+
+module.exports = errorHandler;
